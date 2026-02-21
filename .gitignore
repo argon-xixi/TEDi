@@ -1,0 +1,55 @@
+############################
+# Model weights / checkpoints
+############################
+*.pth
+*.pt
+*.ckpt
+*.pkl
+*.npz
+
+############################
+# Large outputs / logs (project-specific)
+############################
+# 本项目里这些目录体积很大/多为训练输出，不建议上传
+# 注意：yjh/ 目录里也有不少 python 脚本，所以不整目录忽略，只忽略其中的大输出子目录
+yjh/pred_img/
+yjh/vis/
+yjh/test/
+yjh/__pycache__/
+baseline_test2/
+log_new/
+output/
+output_results/
+ckpt/
+__pycache__/
+.vscode/
+
+# 常见训练日志/事件文件
+log*.txt
+*.tfevents.*
+events.out.tfevents.*
+
+############################
+# Text files (按你的需求：忽略 txt，但保留必要配置)
+############################
+*.txt
+!requirements.txt
+
+############################
+# Large images (按你的需求：忽略图片)
+############################
+*.png
+*.jpg
+*.jpeg
+*.bmp
+*.tif
+*.tiff
+*.gif
+
+############################
+# Python / OS
+############################
+.pytest_cache/
+*.pyc
+*.pyo
+.DS_Store

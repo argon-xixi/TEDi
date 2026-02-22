@@ -144,7 +144,7 @@ def instance_inference_pure(
     thing_class_ids: Optional[Union[List[int], set]] = None,  # 连续 id：0..C-1
     box_from_mask: bool = False,            # 是否由 mask 计算 bbox（否则置零）
     mask_bin_thresh: float = 0.0,           # mask logit 的二值阈值（0≈prob>0.5）
-    draw: bool = False,
+    draw: bool = True,
 ) -> Union[Dict[str, torch.Tensor], List[Dict[str, torch.Tensor]]]:
     """
     返回（单图）：{
@@ -258,7 +258,6 @@ def instance_inference_pure(
             "pred_classes": labels_per_image,
             "topk_queries": topk_queries,
         })
-
         topk_queries = topk_queries.detach().cpu().numpy()
         labels_per_image = labels_per_image.detach().cpu().numpy()
         final_scores = final_scores.detach().cpu().numpy()
@@ -272,9 +271,9 @@ def instance_inference_pure(
                
                 color_mask1 = palette[mask]
                 color_mask1 = cv2.cvtColor(color_mask1, cv2.COLOR_RGB2BGR)
-                if not os.path.exists(f'/data1/yuanjiahong_files/bishe/EndoVis2018/instance/new_baseline_1/{pic_name}'):
-                    os.makedirs(f'/data1/yuanjiahong_files/bishe/EndoVis2018/instance/new_baseline_1/{pic_name}')
-                cv2.imwrite(f'/data1/yuanjiahong_files/bishe/EndoVis2018/instance/new_baseline_1/{pic_name}/{topk_queries[i]}_{int(labels_per_image[i] + 1)}_{scores_per_image[i]}_{mask_scores[i]}_{final_scores[i]}.png', color_mask1)
+                if not os.path.exists(f'/data/yjh_files/indice/baseline_2/{pic_name}'):
+                    os.makedirs(f'/data/yjh_files/indice/baseline_2/{pic_name}')
+                cv2.imwrite(f'/data/yjh_files/indice/baseline_2/{pic_name}/{topk_queries[i]}_{int(labels_per_image[i] )}_{scores_per_image[i]}_{mask_scores[i]}_{final_scores[i]}.png', color_mask1)
 
     return outputs[0] if not batched else outputs
 

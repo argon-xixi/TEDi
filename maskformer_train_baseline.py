@@ -48,6 +48,10 @@ from yjh.utils_yjh import instance_inference_pure,batch_topk_instances_to_semant
 # from modeling.memory.memory_encorder_classwise import ClasswiseQueryMemoryModule
 import einops
 import json
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, roc_auc_score
+import matplotlib
+matplotlib.use('Agg')  # 服务器环境无显示器时避免报错
+import matplotlib.pyplot as plt
 #保存indice
 def indice_dict_to_serializable(indice_dict):
     out = {}
@@ -833,7 +837,7 @@ class MaskFormer_baseline():
                 mask_cls_results = outputs["pred_logits"]
                 mask_pred_results = outputs["pred_masks"]
                 gt_mask[gt_mask>7] -= 8
-                instance=False
+                instance=True
                 if instance:
                     pred_masks_val_list = []
                     
@@ -843,60 +847,62 @@ class MaskFormer_baseline():
                         mask_cls_instance= mask_cls_results[idx]
                         mask_pred_instance= mask_pred_results[idx]
                         pred_outputs = instance_inference_pure(
-                            mask_cls_instance, mask_pred_instance,pic_name, 
+                            "all",mask_cls_instance, mask_pred_instance,pic_name, 
                             test_topk_per_image=10, panoptic_on=False,
                             thing_class_ids=None, box_from_mask=False, mask_bin_thresh=0.0
                             )
-                        pred_masks_val_list.append(batch_topk_instances_to_semantic_overwrite(pic_name,pred_outputs,7,5))
-                    pred_masks_val=torch.stack(pred_masks_val_list,dim=0)
-                    # print(batch_topk_instances_to_semantic_overwrite(pred_outputs,7,7).max())
-                    index=eval_loader.batch_size
-                    val_pred[index*i:index*i+index,:,:] = pred_masks_val
-                    val_target[index*i:index*i+index,:,:] = gt_mask  #取后一帧
+                    #     pred_masks_val_list.append(batch_topk_instances_to_semantic_overwrite(pic_name,pred_outputs,7,5))
+                    # pred_masks_val=torch.stack(pred_masks_val_list,dim=0)
+                    # # print(batch_topk_instances_to_semantic_overwrite(pred_outputs,7,7).max())
+                    # index=eval_loader.batch_size
+                    # val_pred[index*i:index*i+index,:,:] = pred_masks_val
+                    # val_target[index*i:index*i+index,:,:] = gt_mask  #取后一帧
 
-                    names+=name 
-                else:
-                # # # #         continue
-                    if self.cfg.inferonly:
-                        pred_masks_val = self.semantic_inference(mask_cls_results, mask_pred_results)
-                        # pred_masks_val = self.semantic_inference_topk(mask_cls_results, mask_pred_results,2)
-                    else:
-                        pred_masks_val = self.semantic_inference(mask_cls_results, mask_pred_results)
-                    index=eval_loader.batch_size      
+                    # names+=name 
+                    
+                continue
+                # else:
+                # # # # #         continue
+                #     if self.cfg.inferonly:
+                #         pred_masks_val = self.semantic_inference(mask_cls_results, mask_pred_results)
+                #         # pred_masks_val = self.semantic_inference_topk(mask_cls_results, mask_pred_results,2)
+                #     else:
+                #         pred_masks_val = self.semantic_inference(mask_cls_results, mask_pred_results)
+                #     index=eval_loader.batch_size      
                   
 
-                    # val_pred[index*i:index*i+index,:,:] = pred_masks_val.argmax(dim=1)
+                #     val_pred[index*i:index*i+index,:,:] = pred_masks_val.argmax(dim=1)
                     # if self.cfg.inferonly:
                     #     inputs = F.interpolate(inputs, size=(128, 128), mode="bilinear", align_corners=False)
                     #     x_denorm = denorm_bchw(inputs,  [0.5, 0.5, 0.5], [0.5, 0.5, 0.5]).clamp(0, 1)*255
                     #     val_image[index*i:index*i+index,:,:,:] = x_denorm.permute(0,2,3,1)
                     #     class_ids = [0,1,2,3,4,5,6,7]
                     #     class_names = ["0","1","2","3","4","5","6","7"]
-                        # for i in range(len(mask_cls_results)):
-                        #     if name[i] == "seq_15_frame129":
-                        #         index=eval_loader.batch_size      
-                        #         # pred_masks_val=get_segimg(pred_masks_val)
-                        #         pred_masks_val=pred_masks_val
-                        #         # val_mask_cls_results[index*i:index*i+index,:,:] = mask_cls_results
-                        #         # val_mask_pred_results[index*i:index*i+index,:,:,:] = mask_pred_results 
-                        #         fig = plot_query_semseg_distribution(
-                        #         gt=gt_mask[i].unsqueeze(0),
-                        #         class_ids=class_ids,
-                        #         class_names=class_names,
-                        #         base=None,   # 没有就传 None
-                        #         ours=(mask_cls_results[i].unsqueeze(0), mask_pred_results[0].unsqueeze(0)),   # 没有就传 None
-                        #         ignore_index=255,
-                        #         mode="log_prob",        # 推荐先用 "prob"（贴近你现在的 semseg），再试 "raw"
-                        #         bins=220,
-                        #         smooth_sigma=2.0,
-                        #         max_pos=60000,
-                        #         max_neg=60000,
-                        #         seed=0,
-                        #         share_x=True,
-                        #         title="Comparison of Query-based SemSeg Score Distribution",
-                        #         save_path="/data/yjh_files/code/Mask2Former-Simplify-master/yjh/query_semseg_dist_good.png"
-                        #     )
-                        #         exit()
+                    #     for i in range(len(mask_cls_results)):
+                    #         if name[i] == "seq_15_frame129":
+                    #             index=eval_loader.batch_size      
+                    #             # pred_masks_val=get_segimg(pred_masks_val)
+                    #             pred_masks_val=pred_masks_val
+                    #             # val_mask_cls_results[index*i:index*i+index,:,:] = mask_cls_results
+                    #             # val_mask_pred_results[index*i:index*i+index,:,:,:] = mask_pred_results 
+                    #             fig = plot_query_semseg_distribution(
+                    #             gt=gt_mask[i].unsqueeze(0),
+                    #             class_ids=class_ids,
+                    #             class_names=class_names,
+                    #             base=None,   # 没有就传 None
+                    #             ours=(mask_cls_results[i].unsqueeze(0), mask_pred_results[0].unsqueeze(0)),   # 没有就传 None
+                    #             ignore_index=255,
+                    #             mode="log_prob",        # 推荐先用 "prob"（贴近你现在的 semseg），再试 "raw"
+                    #             bins=220,
+                    #             smooth_sigma=2.0,
+                    #             max_pos=60000,
+                    #             max_neg=60000,
+                    #             seed=0,
+                    #             share_x=True,
+                    #             title="Comparison of Query-based SemSeg Score Distribution",
+                    #             save_path="/data/yjh_files/code/Mask2Former-Simplify-master/yjh/query_semseg_dist_good.png"
+                    #         )
+                    #             exit()
 
 
                 val_pred[index*i:index*i+index,:,:] = pred_masks_val.argmax(dim=1)
@@ -908,9 +914,7 @@ class MaskFormer_baseline():
                 print("IoU mean:", iou_mean.item())
                 print("Dice mean:", dice_mean.item())
 
-            preds_all=val_pred
-            targets_all=val_target
-            
+          
            
             # # =======================
             # # 筛选出 GT 中包含标签 7 的样本名
@@ -969,7 +973,93 @@ class MaskFormer_baseline():
             #     print(f"Label {c}: pixels = {pixel_count_per_class[c]}, images = {image_count_per_class[c]}")
             # print("========================================================")
             
-            
+             #  # 计算二分类mask的dice和iou
+            # iou_mean, dice_mean = compute_iou_and_dice(val_pred, val_target)
+            # print("IoU mean:", iou_mean.item())
+            # print("Dice mean:", dice_mean.item())
+           
+             # 循环结束后：统一设置 preds/targets（后面 eval_endovis 也会用）
+                preds_all = val_pred.long()
+                targets_all = val_target.long()
+
+              
+                num_classes = 7
+                iou_thresh = float(getattr(self.cfg, 'EVAL_IOU_THRESH', 0.8))
+                eps = 1e-6
+
+                # (1) binary dice
+                _, _, dice_bin = self._eval_binary_fg_and_dice(preds_all, targets_all, eps=eps)
+
+                # (2) per-class IoU + TP/TN/FP/FN
+                iou_mat, per_class_cm, per_class_auc = self._eval_image_level_per_class_tp_tn_fp_fn(
+                    preds_all=preds_all,
+                    targets_all=targets_all,
+                    num_classes=num_classes,
+                    iou_thresh=iou_thresh,
+                    eps=eps,
+                )
+
+                # AUC macro / micro（可选，但你之前代码里有）
+                auc_vals = [v for v in per_class_auc.values() if not (v != v)]
+                auc_macro = float(np.mean(auc_vals)) if len(auc_vals) > 0 else float('nan')
+                try:
+                    gt_present_mat = torch.stack(
+                        [(targets_all == cid).flatten(1).sum(1) > 0 for cid in range(1, num_classes + 1)],
+                        dim=1,
+                    )
+                    y_true_micro = gt_present_mat.to(torch.int64).flatten().cpu().numpy()
+                    y_score_micro = iou_mat.detach().flatten().cpu().numpy()
+                    auc_micro = roc_auc_score(y_true_micro, y_score_micro)
+                except Exception:
+                    auc_micro = float('nan')
+
+                # TensorBoard：每类 AUC
+                for cid in range(1, num_classes + 1):
+                    auc_c = per_class_auc[cid]
+                    if not (auc_c != auc_c):
+                        writer.add_scalar(f'val/class_{cid}_auc', auc_c, epoch)
+
+                save_dir = os.path.join(self.save_folder, 'eval_metrics')
+                os.makedirs(save_dir, exist_ok=True)
+
+                # (a) 混淆矩阵图：每类一个 2x2 子图
+                ncols = 4
+                nrows = int(math.ceil(num_classes / ncols))
+                fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(3.5*ncols, 3.0*nrows), dpi=200)
+                axes = np.array(axes).reshape(-1)
+                for idx, cid in enumerate(range(1, num_classes + 1)):
+                    ax = axes[idx]
+                    disp = ConfusionMatrixDisplay(per_class_cm[cid], display_labels=['neg', 'pos'])
+                    disp.plot(ax=ax, cmap='Blues', colorbar=False, values_format='d')
+                    ax.set_title(f'class {cid} (thr={iou_thresh:.2f})')
+                for j in range(num_classes, len(axes)):
+                    axes[j].axis('off')
+                fig.tight_layout()
+                cm_path = os.path.join(save_dir, f'confusion_matrix_per_class_epoch_{epoch:04d}.png')
+                fig.savefig(cm_path)
+                plt.close(fig)
+
+                # (b) AUC 柱状图
+                fig, ax = plt.subplots(figsize=(8, 3), dpi=200)
+                xs = np.arange(1, num_classes + 1)
+                ys = [per_class_auc[c] if not (per_class_auc[c] != per_class_auc[c]) else 0.0 for c in xs]
+                ax.bar(xs, ys)
+                ax.set_xticks(xs)
+                ax.set_xlabel('class id')
+                ax.set_ylabel('AUC')
+                ax.set_ylim(0.0, 1.0)
+                ax.set_title(f'Per-class AUC (macro={auc_macro:.4f}, micro={auc_micro:.4f}) epoch={epoch}')
+                fig.tight_layout()
+                auc_fig_path = os.path.join(save_dir, f'auc_per_class_epoch_{epoch:04d}.png')
+                fig.savefig(auc_fig_path)
+                plt.close(fig)
+
+                print(f'[eval-metrics] binary_dice={dice_bin:.4f} auc_macro={auc_macro:.4f} auc_micro={auc_micro:.4f} cm={cm_path} auc_fig={auc_fig_path}')
+                writer.add_scalar('val/binary_dice', dice_bin, epoch)
+                if not (auc_macro != auc_macro):
+                    writer.add_scalar('val/class_auc_macro', auc_macro, epoch)
+                if not (auc_micro != auc_micro):
+                    writer.add_scalar('val/class_auc_micro', auc_micro, epoch)
             dice_all=[]
             # val_iou = eval_endovis(preds_all, targets_all, num_classes=7, ignore_background=True, device='cpu')
             val_iou = eval_endovis(preds_all, targets_all, num_classes=7, ignore_background=True, device=self.device)
@@ -1032,6 +1122,101 @@ class MaskFormer_baseline():
         target_onehot = torch.zeros(self.num_classes + 1, y, x).to(target.device)
         target_onehot = target_onehot.scatter(dim=0, index=target.unsqueeze(0), value=1)
         return target_onehot[1:-1]
+
+
+    # =====================================================
+    # Eval helpers (inferonly)
+    # - 二值前景掩膜(binary)与 Dice
+    # - 图像级：按类(类 vs 背景)计算 IoU，并按你定义的规则判定 TP/TN/FP/FN
+    # =====================================================
+    def _eval_binary_fg_and_dice(self, preds_all, targets_all, eps: float = 1e-6):
+        """二值前景(>0) vs 背景(=0) 的 Dice。
+
+        preds_all/targets_all: (N,H,W) 取值为 {0..K}
+        """
+        preds_all = preds_all.long()
+        targets_all = targets_all.long()
+
+        pred_fg = (preds_all > 0)
+        gt_fg = (targets_all > 0)
+
+        inter = (pred_fg & gt_fg).flatten(1).sum(1).float()
+        denom = pred_fg.flatten(1).sum(1).float() + gt_fg.flatten(1).sum(1).float()
+        dice_bin = ((2.0 * inter + eps) / (denom + eps)).mean().item()
+        return pred_fg, gt_fg, dice_bin
+
+    def _eval_image_level_per_class_tp_tn_fp_fn(
+        self,
+        preds_all,
+        targets_all,
+        num_classes: int,
+        iou_thresh: float,
+        eps: float = 1e-6,
+    ):
+        """按类(1..K)做图像级判定。
+
+        规则(每张图、每个类 cid):
+        - 计算该类与背景对应的二分类 IoU (pred==cid vs gt==cid)
+        - 若 IoU > thresh -> TP
+        - 若 GT 和 Pred 都没有该类(即 union==0) -> TN
+        - 若 IoU <= thresh:
+            - pred_only(非重合预测面积) > gt_only(非重合GT面积) -> FP
+            - 否则 -> FN
+
+        返回:
+        - iou_mat: (N, K)
+        - per_class_cm: dict[cid] = 2x2 ndarray [[TN,FP],[FN,TP]]
+        - per_class_auc: dict[cid] = AUC (用 IoU 作为 score，y_true=GT是否出现该类)
+        """
+        preds_all = preds_all.long()
+        targets_all = targets_all.long()
+        device = preds_all.device
+
+        N = preds_all.shape[0]
+        iou_mat = torch.zeros((N, num_classes), device=device, dtype=torch.float32)
+
+        per_class_cm = {}
+        per_class_auc = {}
+
+        for cid in range(1, num_classes + 1):
+            p = (preds_all == cid)
+            g = (targets_all == cid)
+
+            inter = (p & g).flatten(1).sum(1).float()
+            union = (p | g).flatten(1).sum(1).float()
+            iou = torch.where(union > 0, inter / (union + eps), torch.zeros_like(union))
+            iou_mat[:, cid - 1] = iou
+
+            # 面积
+            pred_only = (p & (~g)).flatten(1).sum(1).float()
+            gt_only = (g & (~p)).flatten(1).sum(1).float()
+
+            # 你的 TP/TN/FP/FN 规则
+            tp = (union > 0) & (iou > iou_thresh)
+            tn = (union == 0)
+            undecided = (~tp) & (~tn)  # union>0 & iou<=thr
+            fp = undecided & (pred_only > gt_only)
+            fn = undecided & (~(pred_only > gt_only))  # pred_only <= gt_only
+
+            # 组 2x2 confusion matrix
+            tn_c = int(tn.sum().item())
+            fp_c = int(fp.sum().item())
+            fn_c = int(fn.sum().item())
+            tp_c = int(tp.sum().item())
+            per_class_cm[cid] = np.array([[tn_c, fp_c], [fn_c, tp_c]], dtype=np.int64)
+
+            # AUC：y_true=GT是否出现该类；y_score=IoU
+            y_true = (g.flatten(1).sum(1) > 0).to(torch.int64).detach().cpu().numpy()
+            y_score = iou.detach().cpu().numpy()
+            auc_c = float('nan')
+            try:
+                if len(set(y_true.tolist())) == 2:
+                    auc_c = roc_auc_score(y_true, y_score)
+            except Exception as e:
+                print(f'[eval-metrics] class {cid} roc_auc_score failed: {e}')
+            per_class_auc[cid] = auc_c
+
+        return iou_mat, per_class_cm, per_class_auc
 
 
     def semantic_inference(self, mask_cls, mask_pred):       

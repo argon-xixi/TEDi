@@ -83,8 +83,8 @@ from detectron2.config import CfgNode as CN
 from maskformer_train_sam_new import MaskFormer_sam_new
 import tensorboard as tf
 remove_list_train1=[]
-for index in range(119,149):
-    remove_list_train1.append('seq_3_frame'+str(index))
+for index in range(119,129):
+    remove_list_train1.append('seq_8_frame'+str(index))
 # remove_list_val1=[]
 # path='/data1/yuanjiahong_files/bishe/EndoVis2017/data_raw/test_label/'
 # for k in os.listdir(path):
@@ -137,6 +137,8 @@ def build(cfg):
                 test_paths_temp.append(p.split(".")[0])
             else:
                 train_paths_temp.append(p.split(".")[0])
+            if fname.split('.')[0] in remove_list_train1:
+                train_paths_temp.append(p.split(".")[0])
         print(f"Fold {cfg.fold}")
         print(f"Test sequences: {test_seqs}")
         print(f"#Train files: {len(train_paths_temp)}")
@@ -159,7 +161,7 @@ def build(cfg):
         for i in test_paths:
             if i.split('/')[-1].replace('.h5','') in remove_list  or i.split('/')[-1].replace('.h5','') in remove_list_val :
             # if i.split('/')[-1].replace('.h5','') in remove_list  :
-                continue
+                pass
             # if 'seq_2_' not in i :
             #         continue
             test_paths_temp.append(i.split('.')[0])
@@ -200,7 +202,7 @@ def get_args():
     parser.add_argument("--bbox", default=False, type=bool) #是否运行bbox模块 
     parser.add_argument("--sync_bn", default=False, type=bool) #是否使用sync_bn
     parser.add_argument('--config', type=str, default='/data/yjh_files/code/Mask2Former-Simplify-master/configs/maskformer_yjh.yaml')
-    parser.add_argument('--tracker', default=True, type=bool) #是否使用track模块
+    parser.add_argument('--tracker', default=False, type=bool) #是否使用track模块
     parser.add_argument('--output_feature', default=False, type=bool)
     parser.add_argument('--refiner', default=False, type=bool) #是否使用refine模块
     # 声明 local_rank 参数（DDP自动注入）
@@ -212,10 +214,10 @@ def get_args():
     parser.add_argument("--dataset", type=str, default="EndoVis2018", choices=['EndoVis2017','EndoVis2018']) #使用数据集
     parser.add_argument("--seed", type=int, default=50)
     parser.add_argument("--fold", type=int, default=2) #使用第几个fold
-    parser.add_argument("--task", type=str, default="endovis_2018_track_swins_onlymemory_0") #任务名（保存文件夹名）
+    parser.add_argument("--task", type=str, default="endovis_2018_track_swins_23_1") #任务名（保存文件夹名）
     parser.add_argument("--root", type=str, default="/data/yjh_files/data/Endovis2018/data_h5/train/") #训练数据集根目录
     parser.add_argument("--epochs", type=int, default=80 )
-    parser.add_argument("--batch-size", type=int, default=36) #24
+    parser.add_argument("--batch-size", type=int, default=12) #24
     parser.add_argument("--workers", type=int, default=16)  #16
     parser.add_argument("--learning-rate", type=float, default=6e-5, dest="lr")
     

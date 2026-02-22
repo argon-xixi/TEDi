@@ -147,8 +147,8 @@ class SegDataset_track(data.Dataset):
 
             # 读 6 张：[-3, -2, -1, 0, +1, +2]
             # 如果你更想“前2后3”，改成 offsets = [-2, -1, 0, 1, 2, 3]
-            num_read = self.cfg.MODEL.MEMORY_BANK.NUM_MEM_FRAMES+self.cfg.MODEL.MEMORY_BANK.NUM_TRACK_FRAMES
-            # num_read = 3
+            # num_read = self.cfg.MODEL.MEMORY_BANK.NUM_MEM_FRAMES+self.cfg.MODEL.MEMORY_BANK.NUM_TRACK_FRAMES
+            num_read = 3
             left = num_read // 2              # 3
             right = num_read - left - 1       # 2
             offsets = list(range(-left, right + 1))  # [-3, -2, -1, 0, 1, 2]
@@ -210,7 +210,7 @@ class SegDataset_track(data.Dataset):
             img_left = np.stack(img_left_list, axis=0)
             mask = np.stack(mask_list, axis=0)
             # feat = np.stack(feat_list, axis=0)
-            name = name_list[2]  # 使用第二帧的名字（前后帧都使用相同名字）
+            name = name_list[-1]  # 使用最后一帧的名字（前后帧都使用相同名字）
 
             # 如果不需要二进制读取，则返回图像、mask 和特征
             if not self.bina:

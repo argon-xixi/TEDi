@@ -1,0 +1,132 @@
+import os
+import re
+import csv
+import numpy as np
+from PIL import Image
+
+BASE_DIR = "/data/yjh_files/indice/baseline_1"
+SEQ_NAME = "seq_2"
+SEQ_DIR = os.path.join(BASE_DIR, SEQ_NAME)
+
+GT_DIR = "/data/yjh_files/indice/gt"
+
+CLS_TH = 0.85
+MASK_TH = 0.80
+IOU_THRESHOLD = 0.5
+RESIZE_WH = (128, 128)
+
+# 文件名格式：
+# q_label_clsconf_maskconf.png
+FNAME_RE = re.compile(
+    r"^(?P<q>\d+)_(?P<label>\d+)_(?P<cls>[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)_(?P<mask>[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\.png$"
+)
+
+def load_mask(path):
+    img = Image.open(path).convert("L")
+    img = img.resize(RESIZE_WH, resample=Image.NEAREST)
+    arr = np.array(img)
+    return arr > 0
+
+def compute_iou(a, b):
+    inter = np.logical_and(a, b).sum()
+    union = np.logical_or(a, b).sum()
+    if union == 0:
+        return 1.0
+    return inter / union
+
+def main():
+    image_names = []
+    for i in os.listdir(BASE_DIR):
+        if SEQ_NAME in i:
+            image_names.append(GT_DIR + '/' + i )
+          
+    img_names = sorted([
+        d for d in os.listdir(SEQ_DIR)
+        if os.path.isdir(os.path.join(SEQ_DIR, d))
+    ])
+
+    n_imgs = len(img_names)
+    print("Total images:", n_imgs)
+
+    result = np.zeros((10, n_imgs), dtype=np.uint8)
+
+    for j, imgname in enumerate(img_names):
+
+        pred_dir = os.path.join(SEQ_DIR, imgname)
+        files = [f for f in os.listdir(pred_dir) if f.endswith(".png")]
+
+        # 按query分组
+        by_q = {i: [] for i in range(10)}
+
+        for f in files:
+            m = FNAME_RE.match(f)
+            if not m:
+                continue
+
+            q = int(m.group("q"))
+            label = int(m.group("label"))
+            cls_conf = float(m.group("cls"))
+            mask_conf = float(m.group("mask"))
+            path = os.path.join(pred_dir, f)
+
+            if 0 <= q <= 9:
+                by_q[q].append((label, cls_conf, mask_conf, path))
+
+        for q in range(10):
+
+            candidates = by_q[q]
+            if not candidates:
+                result[q, j] = 0
+                continue
+
+            # 置信度筛选
+            passed = [
+                c for c in candidates
+                if c[1] > CLS_TH and c[2] > MASK_TH
+            ]
+
+            if not passed:
+                result[q, j] = 0
+                continue
+
+            # 选mask置信度最大的
+            passed.sort(key=lambda x: x[2], reverse=True)
+            label, cls_conf, mask_conf, pred_path = passed[0]
+
+            # GT路径：GT_DIR/imgname/label.png
+            gt_path = os.path.join(GT_DIR, imgname, f"{label}.png")
+
+            if not os.path.exists(gt_path):
+                result[q, j] = 2
+                continue
+
+            pred_mask = load_mask(pred_path)
+            gt_mask = load_mask(gt_path)
+
+            iou = compute_iou(pred_mask, gt_mask)
+
+            if iou > IOU_THRESHOLD:
+                result[q, j] = 1
+            else:
+                result[q, j] = 2
+
+    # 保存
+    out_npy = os.path.join(BASE_DIR, f"{SEQ_NAME}_query_matrix.npy")
+    out_csv = os.path.join(BASE_DIR, f"{SEQ_NAME}_query_matrix.csv")
+
+    np.save(out_npy, result)
+
+    with open(out_csv, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["query\\image"] + img_names)
+        for q in range(10):
+            writer.writerow([q] + result[q].tolist())
+
+    print("Saved matrix shape:", result.shape)
+    print("Saved to:")
+    print(out_npy)
+    print(out_csv)
+
+
+if __name__ == "__main__":
+    main()

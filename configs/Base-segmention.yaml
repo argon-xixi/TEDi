@@ -2,11 +2,11 @@ MODEL:
   BACKBONE: 
     TYPE: 'swin' # 'resnetxx' or 'swin'
   # PRETRAINED_WEIGHTS:  "/data/yjh_files/pretrain_weights/mask2former_Epoch89_dice82.1840.pth"
-  PRETRAINED_WEIGHTS:   "/data/yjh_files/pretrain_weights/mask2former_Epoch21_dice82.0220.pth"
+  PRETRAINED_WEIGHTS:  "/data/yjh_files/data/Endovis2018/weight_new/endovis_2018_track_swins_onlytrack_0/2/mask2former_Epoch1_dice83.0700.pth"
   # PRETRAINED_WEIGHTS:  "/data/yjh_files/data/Endovis2017/weight_new/endovis_2017_baseline_swins_1_0/0/mask2former_Epoch35_dice72.2780.pth"
   # PRETRAINED_WEIGHTS:   "/data1/yuanjiahong_files/bishe/EndoVis2018/weight_new/endovis_2018_baseline_swins_3_0/mask2former_Epoch48_dice83.1020.pth"
   # PRETRAINED_WEIGHTS:   "/data1/yuanjiahong_files/bishe/EndoVis2018/weight_new/endovis_2018_backbone_swins_6_3/mask2former_Epoch43_dice77.6220.pth" #"/home/gjy/code_yjh/mask2former_resnet50.pth" 
-  INFER_PRETRAINED_WEIGHTS: "/data/yjh_files/data/Endovis2018/weight_new/endovis_2018_track_swins_onlymemory_0/2/mask2former_Epoch27_dice83.2560.pth"
+  INFER_PRETRAINED_WEIGHTS: "/data/yjh_files/pretrain_weights/mask2former_Epoch21_dice82.0220.pth"
   RESNETS:
     DEPTH: 50
     STEM_OUT_CHANNELS: 64

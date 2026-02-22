@@ -35,8 +35,8 @@ import itertools
 from PIL import Image
 # import wandb
 from Data import dataloaders
-# from modeling.MaskFormerModel_track_ori import MaskFormerModel_track
-from modeling.MaskFormerModel_memorybank_only import MaskFormerModel_memorybank_only as MaskFormerModel_track
+from modeling.MaskFormerModel_track_ori import MaskFormerModel_track
+# from modeling.MaskFormerModel_memorybank_only import MaskFormerModel_memorybank_only as MaskFormerModel_track
 # from modeling.MaskFormerModel_track_memorybank import MaskFormerModel_track_memorybank as MaskFormerModel_track
 # 备注：memory bank / tracking 的帧数切分现在由 cfg.MODEL.MEMORY_BANK.NUM_MEM_FRAMES (m)
 # 和 cfg.MODEL.MEMORY_BANK.NUM_TRACK_FRAMES (n) 控制，不再写死 3/3。
@@ -61,6 +61,10 @@ from mask2former_video.modeling.criterion import VideoSetCriterion
 from mask2former_video.modeling.matcher import VideoHungarianMatcher, VideoHungarianMatcher_Consistent
 import einops
 import json
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, roc_auc_score
+import matplotlib
+matplotlib.use('Agg')  # 服务器环境无显示器时避免报错
+import matplotlib.pyplot as plt
 
 #保存cutmix反解码
 def denorm_bchw(x, mean, std):
@@ -653,15 +657,15 @@ class MaskFormer_track():
             self.scheduler.step(evaluator_score)
             # if torch.distributed.get_rank() == 0:
             os.makedirs(self.save_folder, exist_ok=True)
-            if evaluator_score > max_score:
-                max_score = evaluator_score
-                ckpt_path = os.path.join(self.save_folder, 'mask2former_Epoch{0}_dice{1:.4f}.pth'.format(epoch, max_score))
-                save_state = {'model': self.model.state_dict(),
-                            'lr': self.optim.param_groups[0]['lr'],
-                            'epoch': epoch}
-                torch.save(save_state, ckpt_path)
-                print('weights {0} saved success!'.format(ckpt_path))
-            # torch.distributed.barrier() 
+            # if evaluator_score > max_score:
+            max_score = evaluator_score
+            ckpt_path = os.path.join(self.save_folder, 'mask2former_Epoch{0}_dice{1:.4f}.pth'.format(epoch, max_score))
+            save_state = {'model': self.model.state_dict(),
+                        'lr': self.optim.param_groups[0]['lr'],
+                        'epoch': epoch}
+            torch.save(save_state, ckpt_path)
+            print('weights {0} saved success!'.format(ckpt_path))
+        # torch.distributed.barrier() 
             self.summary_writer.close()
 
     def train_epoch(self,data_loader,epoch,writer,warmup_only=False):
@@ -802,9 +806,10 @@ class MaskFormer_track():
         targets_list = []
         per_class_val={}
         
-        val_pred=torch.zeros((len(eval_loader.dataset),128,128)).to(device=self.device)
-        val_target=torch.zeros((len(eval_loader.dataset),128,128)).to(device=self.device)
-        val_image=torch.zeros((len(eval_loader.dataset),128,128,3)).to(device=self.device)
+        # 注意：val_pred/val_target 存的是 hard label（0..num_classes），用 long 更合适
+        val_pred = torch.zeros((len(eval_loader.dataset), 128, 128), dtype=torch.long, device=self.device)
+        val_target = torch.zeros((len(eval_loader.dataset), 128, 128), dtype=torch.long, device=self.device)
+        val_image = torch.zeros((len(eval_loader.dataset), 128, 128, 3), device=self.device)
         names=[]
 
         # # ---- instance-level eval accumulators (Hungarian matched) ----
@@ -904,29 +909,127 @@ class MaskFormer_track():
                 # names+=name 
                 ########
                 
-                index=eval_loader.batch_size
+                start = int(i * eval_loader.batch_size)
                 if self.cfg.inferonly:
-     
+
                     inputs = F.interpolate(inputs[:,-1], size=(128, 128), mode="bilinear", align_corners=False)
                     x_denorm = denorm_bchw(inputs,  [0.5, 0.5, 0.5], [0.5, 0.5, 0.5]).clamp(0, 1)*255
-                    val_image[index*i:index*i+index,:,:,:] = x_denorm.permute(0,2,3,1)
                     pred_masks_val = self.semantic_inference(mask_cls_results, mask_pred_results)
                     # pred_masks_val = self.semantic_inference_topk(mask_cls_results, mask_pred_results,5)
                 else:
                     pred_masks_val = self.semantic_inference(mask_cls_results, mask_pred_results)
+                instance=True
+                if instance:
+                    pred_masks_val_list = []
+                    
+                    for idx in range(len(mask_cls_results)):
+                        pic_name = name[idx]
+                        
+                        mask_cls_instance= mask_cls_results[idx]
+                        mask_pred_instance= mask_pred_results[idx]
+                        pred_outputs = instance_inference_pure(
+                            "all",mask_cls_instance, mask_pred_instance,pic_name, 
+                            test_topk_per_image=10, panoptic_on=False,
+                            thing_class_ids=None, box_from_mask=False, mask_bin_thresh=0.0
+                            )
+                continue
+                # 用实际 batch size，避免最后一个 batch 不满导致越界/残留 0
+                bs = int(pred_masks_val.shape[0])
+                if self.cfg.inferonly:
+                    val_image[start:start+bs, :, :, :] = x_denorm.permute(0,2,3,1)
                      
                 # pred_masks_val=get_segimg(pred_masks_val)
-                val_pred[index*i:index*i+index,:,:] = pred_masks_val.argmax(dim=1)
-                
-                val_target[index*i:index*i+index,:,:] = gt_mask[:,-1,:,:]  #取后一帧
-                names+=name 
-                
-            #  # 计算二分类mask的dice和iou
-            # iou_mean, dice_mean = compute_iou_and_dice(val_pred, val_target)
-            # print("IoU mean:", iou_mean.item())
-            # print("Dice mean:", dice_mean.item())
-            preds_all=val_pred
-            targets_all=val_target
+                val_pred[start:start+bs, :, :] = pred_masks_val.argmax(dim=1).to(torch.long)
+                val_target[start:start+bs, :, :] = gt_mask[:, -1, :, :].to(torch.long)  # 取后一帧
+                names += name
+            preds_all = val_pred
+            targets_all = val_target
+            if self.cfg.inferonly:
+                # # 计算二分类mask的dice和iou
+                iou_mean, dice_mean = compute_iou_and_dice(val_pred, val_target)
+                print("IoU mean:", iou_mean.item())
+                print("Dice mean:", dice_mean.item())
+             # 循环结束后：统一设置 preds/targets（后面 eval_endovis 也会用）
+                preds_all = val_pred.long()
+                targets_all = val_target.long()
+
+                num_classes = 7
+                iou_thresh = float(getattr(self.cfg, 'EVAL_IOU_THRESH', 0.8))
+                eps = 1e-6
+
+                # (1) binary dice
+                _, _, dice_bin = self._eval_binary_fg_and_dice(preds_all, targets_all, eps=eps)
+
+                # (2) per-class IoU + TP/TN/FP/FN
+                iou_mat, per_class_cm, per_class_auc = self._eval_image_level_per_class_tp_tn_fp_fn(
+                    preds_all=preds_all,
+                    targets_all=targets_all,
+                    num_classes=num_classes,
+                    iou_thresh=iou_thresh,
+                    eps=eps,
+                )
+
+                # AUC macro / micro（可选，但你之前代码里有）
+                auc_vals = [v for v in per_class_auc.values() if not (v != v)]
+                auc_macro = float(np.mean(auc_vals)) if len(auc_vals) > 0 else float('nan')
+                try:
+                    gt_present_mat = torch.stack(
+                        [(targets_all == cid).flatten(1).sum(1) > 0 for cid in range(1, num_classes + 1)],
+                        dim=1,
+                    )
+                    y_true_micro = gt_present_mat.to(torch.int64).flatten().cpu().numpy()
+                    y_score_micro = iou_mat.detach().flatten().cpu().numpy()
+                    auc_micro = roc_auc_score(y_true_micro, y_score_micro)
+                except Exception:
+                    auc_micro = float('nan')
+
+                # TensorBoard：每类 AUC
+                for cid in range(1, num_classes + 1):
+                    auc_c = per_class_auc[cid]
+                    if not (auc_c != auc_c):
+                        writer.add_scalar(f'val/class_{cid}_auc', auc_c, epoch)
+
+                save_dir = os.path.join(self.save_folder, 'eval_metrics')
+                os.makedirs(save_dir, exist_ok=True)
+
+                # (a) 混淆矩阵图：每类一个 2x2 子图
+                ncols = 4
+                nrows = int(math.ceil(num_classes / ncols))
+                fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(3.5*ncols, 3.0*nrows), dpi=200)
+                axes = np.array(axes).reshape(-1)
+                for idx, cid in enumerate(range(1, num_classes + 1)):
+                    ax = axes[idx]
+                    disp = ConfusionMatrixDisplay(per_class_cm[cid], display_labels=['neg', 'pos'])
+                    disp.plot(ax=ax, cmap='Blues', colorbar=False, values_format='d')
+                    ax.set_title(f'class {cid} (thr={iou_thresh:.2f})')
+                for j in range(num_classes, len(axes)):
+                    axes[j].axis('off')
+                fig.tight_layout()
+                cm_path = os.path.join(save_dir, f'confusion_matrix_per_class_epoch_{epoch:04d}.png')
+                fig.savefig(cm_path)
+                plt.close(fig)
+
+                # (b) AUC 柱状图
+                fig, ax = plt.subplots(figsize=(8, 3), dpi=200)
+                xs = np.arange(1, num_classes + 1)
+                ys = [per_class_auc[c] if not (per_class_auc[c] != per_class_auc[c]) else 0.0 for c in xs]
+                ax.bar(xs, ys)
+                ax.set_xticks(xs)
+                ax.set_xlabel('class id')
+                ax.set_ylabel('AUC')
+                ax.set_ylim(0.0, 1.0)
+                ax.set_title(f'Per-class AUC (macro={auc_macro:.4f}, micro={auc_micro:.4f}) epoch={epoch}')
+                fig.tight_layout()
+                auc_fig_path = os.path.join(save_dir, f'auc_per_class_epoch_{epoch:04d}.png')
+                fig.savefig(auc_fig_path)
+                plt.close(fig)
+
+                print(f'[eval-metrics] binary_dice={dice_bin:.4f} auc_macro={auc_macro:.4f} auc_micro={auc_micro:.4f} cm={cm_path} auc_fig={auc_fig_path}')
+                writer.add_scalar('val/binary_dice', dice_bin, epoch)
+                if not (auc_macro != auc_macro):
+                    writer.add_scalar('val/class_auc_macro', auc_macro, epoch)
+                if not (auc_micro != auc_micro):
+                    writer.add_scalar('val/class_auc_micro', auc_micro, epoch)
             dice_all=[]
             val_iou = eval_endovis(preds_all, targets_all, num_classes=7, ignore_background=True, device=self.device)
             if self.cfg.inferonly:
@@ -1076,6 +1179,101 @@ class MaskFormer_track():
         semseg=torch.stack(semseg_all)
         return semseg
     
+      # =====================================================
+    # Eval helpers (inferonly)
+    # - 二值前景掩膜(binary)与 Dice
+    # - 图像级：按类(类 vs 背景)计算 IoU，并按你定义的规则判定 TP/TN/FP/FN
+    # =====================================================
+    def _eval_binary_fg_and_dice(self, preds_all, targets_all, eps: float = 1e-6):
+        """二值前景(>0) vs 背景(=0) 的 Dice。
+
+        preds_all/targets_all: (N,H,W) 取值为 {0..K}
+        """
+        preds_all = preds_all.long()
+        targets_all = targets_all.long()
+
+        pred_fg = (preds_all > 0)
+        gt_fg = (targets_all > 0)
+
+        inter = (pred_fg & gt_fg).flatten(1).sum(1).float()
+        denom = pred_fg.flatten(1).sum(1).float() + gt_fg.flatten(1).sum(1).float()
+        dice_bin = ((2.0 * inter + eps) / (denom + eps)).mean().item()
+        return pred_fg, gt_fg, dice_bin
+
+    def _eval_image_level_per_class_tp_tn_fp_fn(
+        self,
+        preds_all,
+        targets_all,
+        num_classes: int,
+        iou_thresh: float,
+        eps: float = 1e-6,
+    ):
+        """按类(1..K)做图像级判定。
+
+        规则(每张图、每个类 cid):
+        - 计算该类与背景对应的二分类 IoU (pred==cid vs gt==cid)
+        - 若 IoU > thresh -> TP
+        - 若 GT 和 Pred 都没有该类(即 union==0) -> TN
+        - 若 IoU <= thresh:
+            - pred_only(非重合预测面积) > gt_only(非重合GT面积) -> FP
+            - 否则 -> FN
+
+        返回:
+        - iou_mat: (N, K)
+        - per_class_cm: dict[cid] = 2x2 ndarray [[TN,FP],[FN,TP]]
+        - per_class_auc: dict[cid] = AUC (用 IoU 作为 score，y_true=GT是否出现该类)
+        """
+        preds_all = preds_all.long()
+        targets_all = targets_all.long()
+        device = preds_all.device
+
+        N = preds_all.shape[0]
+        iou_mat = torch.zeros((N, num_classes), device=device, dtype=torch.float32)
+
+        per_class_cm = {}
+        per_class_auc = {}
+
+        for cid in range(1, num_classes + 1):
+            p = (preds_all == cid)
+            g = (targets_all == cid)
+
+            inter = (p & g).flatten(1).sum(1).float()
+            union = (p | g).flatten(1).sum(1).float()
+            iou = torch.where(union > 0, inter / (union + eps), torch.zeros_like(union))
+            iou_mat[:, cid - 1] = iou
+
+            # 面积
+            pred_only = (p & (~g)).flatten(1).sum(1).float()
+            gt_only = (g & (~p)).flatten(1).sum(1).float()
+
+            # 你的 TP/TN/FP/FN 规则
+            tp = (union > 0) & (iou > iou_thresh)
+            tn = (union == 0)
+            undecided = (~tp) & (~tn)  # union>0 & iou<=thr
+            fp = undecided & (pred_only > gt_only)
+            fn = undecided & (~(pred_only > gt_only))  # pred_only <= gt_only
+
+            # 组 2x2 confusion matrix
+            tn_c = int(tn.sum().item())
+            fp_c = int(fp.sum().item())
+            fn_c = int(fn.sum().item())
+            tp_c = int(tp.sum().item())
+            per_class_cm[cid] = np.array([[tn_c, fp_c], [fn_c, tp_c]], dtype=np.int64)
+
+            # AUC：y_true=GT是否出现该类；y_score=IoU
+            y_true = (g.flatten(1).sum(1) > 0).to(torch.int64).detach().cpu().numpy()
+            y_score = iou.detach().cpu().numpy()
+            auc_c = float('nan')
+            try:
+                if len(set(y_true.tolist())) == 2:
+                    auc_c = roc_auc_score(y_true, y_score)
+            except Exception as e:
+                print(f'[eval-metrics] class {cid} roc_auc_score failed: {e}')
+            per_class_auc[cid] = auc_c
+
+        return iou_mat, per_class_cm, per_class_auc
+
+
 if __name__ == '__main__':
     def _get_binary_mask( num_classes,target):
         # 返回每类的binary mask

@@ -35,9 +35,9 @@ import itertools
 from PIL import Image
 # import wandb
 from Data import dataloaders
-from modeling.MaskFormerModel_track_ori import MaskFormerModel_track
+# from modeling.MaskFormerModel_track_ori import MaskFormerModel_track
 # from modeling.MaskFormerModel_memorybank_only import MaskFormerModel_memorybank_only as MaskFormerModel_track
-# from modeling.MaskFormerModel_track_memorybank import MaskFormerModel_track_memorybank as MaskFormerModel_track
+from modeling.MaskFormerModel_track_memorybank import MaskFormerModel_track_memorybank as MaskFormerModel_track
 # 备注：memory bank / tracking 的帧数切分现在由 cfg.MODEL.MEMORY_BANK.NUM_MEM_FRAMES (m)
 # 和 cfg.MODEL.MEMORY_BANK.NUM_TRACK_FRAMES (n) 控制，不再写死 3/3。
 # from modeling.MaskFormerModel_track_memorybank_classwise import  MaskFormerModel_track
@@ -54,7 +54,7 @@ from yjh.mIOU_new import eval_endovis
 import cv2
 import pickle
 from collections import OrderedDict
-from yjh.utils_yjh import instance_inference_pure,batch_topk_instances_to_semantic_overwrite,visanddraw,semantic_inference_with_bg,compute_iou_and_dice
+from yjh.utils_yjh import instance_inference_pure,batch_topk_instances_to_semantic_overwrite,visanddraw,semantic_inference_with_bg,compute_iou_and_dice,overlay
 import sys
 sys.path.append('/data/yjh_files/code/DVIS-main')
 from mask2former_video.modeling.criterion import VideoSetCriterion
@@ -918,7 +918,7 @@ class MaskFormer_track():
                     # pred_masks_val = self.semantic_inference_topk(mask_cls_results, mask_pred_results,5)
                 else:
                     pred_masks_val = self.semantic_inference(mask_cls_results, mask_pred_results)
-                instance=True
+                instance=False
                 if instance:
                     pred_masks_val_list = []
                     
@@ -932,7 +932,7 @@ class MaskFormer_track():
                             test_topk_per_image=10, panoptic_on=False,
                             thing_class_ids=None, box_from_mask=False, mask_bin_thresh=0.0
                             )
-                continue
+                # continue
                 # 用实际 batch size，避免最后一个 batch 不满导致越界/残留 0
                 bs = int(pred_masks_val.shape[0])
                 if self.cfg.inferonly:
@@ -1037,6 +1037,7 @@ class MaskFormer_track():
                     dice_mean_new=dice_coeff(preds_all[i,:,:].unsqueeze(0), targets_all[i,:,:].unsqueeze(0).to(self.device))
                     dice_all.append(dice_mean_new.detach().cpu().numpy())
                     # visanddraw(preds_all[i,:,:], targets_all[i,:,:].to(self.device),names[i],dice_mean_new,'class_memorybank_1',val_image[i])
+                    overlay(preds_all[i,:,:], targets_all[i,:,:].to(self.device),names[i],dice_mean_new,'final_vis',val_image[i])
                 dice=np.mean(dice_all)
             score=val_iou['IoU'] #就是ISINET IOU，对mask求平均
             print(val_iou)
@@ -1053,6 +1054,7 @@ class MaskFormer_track():
 
             # print('IOU:',val_iou['IoU'])
             # 记录日志
+            exit()
             writer.add_scalar('val/val_loss', np.mean(losses_list_val), epoch)
             writer.add_scalar('val/val_dice_loss', np.mean(loss_dice_list_val), epoch)
             writer.add_scalar('val/val_bce_loss', np.mean(loss_ce_list_val), epoch)

@@ -18,6 +18,49 @@ palette = np.array([
         [255, 255, 255]   # class 7 - white
     ], dtype=np.uint8)
 
+
+def _apply_color_overlay(bgr_img: np.ndarray, label_mask: np.ndarray, alpha: float = 0.4) -> np.ndarray:
+    """Overlay a label mask on BGR image (EndoVis2017/2018, 1..7).
+
+    Args:
+        bgr_img: HxWx3 uint8 (OpenCV BGR).
+        label_mask: HxW, values in {0..7}, where 0=background.
+        alpha: blending factor for colored regions.
+
+    Returns:
+        out_bgr: HxWx3 uint8
+    """
+
+    # 注意：这里的颜色是 **BGR** 顺序
+    colors = {
+        1: (226, 185, 5),
+        2: (39, 151, 187),
+        3: (69, 179, 84),
+        4: (151, 181, 50),
+        5: (72, 203, 137),
+        6: (191, 131, 137),
+        7: (162, 109, 199),
+    }
+
+    if bgr_img.ndim != 3 or bgr_img.shape[2] != 3:
+        raise ValueError(f"bgr_img should be HxWx3, got {bgr_img.shape}")
+    if label_mask.ndim != 2:
+        raise ValueError(f"label_mask should be HxW, got {label_mask.shape}")
+
+    h, w = bgr_img.shape[:2]
+    if label_mask.shape != (h, w):
+        label_mask = cv2.resize(label_mask.astype(np.uint8), (w, h), interpolation=cv2.INTER_NEAREST)
+
+    out = bgr_img.copy()
+    for cid, color in colors.items():
+        m = label_mask == cid
+        if not np.any(m):
+            continue
+        overlay = np.zeros_like(out, dtype=np.uint8)
+        overlay[:, :] = color
+        out[m] = (out[m] * (1 - alpha) + overlay[m] * alpha).astype(np.uint8)
+    return out
+
 # def instance_inference_pure( 
 #     mask_cls: torch.Tensor,                 # [Q,C+1] or [B,Q,C+1]，最后一列为 no-object
 #     mask_pred: torch.Tensor,                # [Q,H,W] or [B,Q,H,W]，mask logits
@@ -488,6 +531,99 @@ def visanddraw(pred_mask,target,name,dice,task,img):
                 f'/data/yjh_files/code/Mask2Former-Simplify-master/{task}/dice<0.5/{name}_{dice}.png',
                 cv2.cvtColor(img_flo, cv2.COLOR_RGB2BGR)
             )
+
+
+def overlay(pred_mask, target, name, dice, task, img, alpha: float = 0.6,
+            out_size_hw=( 1024,1280), save: bool = True):
+    """将预测/GT label mask 以彩色叠加方式覆盖在原图上，并输出统一 resize 结果。
+
+    入参保持与 visanddraw 一致，便于直接替换调用。
+
+    Args:
+        pred_mask: (H,W) torch/numpy，取值 {0..7}。
+        target:    (H,W) torch/numpy，取值 {0..7}。
+        name:      保存文件名主体。
+        dice:      用于分目录（与 visanddraw 保持一致）。
+        task:      保存目录名（与 visanddraw 保持一致）。
+        img:       (H,W,3) torch/numpy，通常为 RGB。
+        alpha:     覆盖区域的 blending 系数。
+        out_size_hw: (H,W) 输出 resize 目标尺寸，默认 (1024,1280)。
+        save:      是否写盘（目录规则与 visanddraw 一致）。
+
+    Returns:
+        out_bgr: np.ndarray, (out_h,out_w,3) uint8，BGR 顺序（可直接 cv2.imwrite）。
+
+    Notes:
+        - 输出是三行拼图：pred_overlay / gt_overlay / 原图（方便对照）。
+        - 若 pred/gt 与 img 尺寸不同，会对 mask 做最近邻 resize 对齐到 img。
+    """
+    # --- to numpy ---
+    if torch.is_tensor(pred_mask):
+        pred_np = pred_mask.detach().cpu().numpy()
+    else:
+        pred_np = np.asarray(pred_mask)
+    if torch.is_tensor(target):
+        gt_np = target.detach().cpu().numpy()
+    else:
+        gt_np = np.asarray(target)
+    if torch.is_tensor(img):
+        img_np = img.detach().cpu().numpy()
+    else:
+        img_np = np.asarray(img)
+
+    # accept CHW or HWC
+    if img_np.ndim == 3 and img_np.shape[0] == 3 and img_np.shape[-1] != 3:
+        img_np = np.transpose(img_np, (1, 2, 0))
+
+    # squeeze channel if needed (e.g., 1xHxW)
+    if pred_np.ndim == 3 and pred_np.shape[0] == 1:
+        pred_np = pred_np[0]
+    if gt_np.ndim == 3 and gt_np.shape[0] == 1:
+        gt_np = gt_np[0]
+
+    # ensure uint8 image in [0,255]
+    if img_np.dtype != np.uint8:
+        # 常见情况：float in [0,1] 或 [0,255]
+        imax = float(np.max(img_np)) if img_np.size else 0.0
+        if imax <= 1.0:
+            img_np = (img_np * 255.0).clip(0, 255)
+        img_np = img_np.astype(np.uint8)
+
+    if img_np.ndim != 3 or img_np.shape[2] != 3:
+        raise ValueError(f"img should be HxWx3, got {img_np.shape}")
+
+    # img is RGB in most training pipelines; convert to BGR for OpenCV overlay/write
+    img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+
+    pred_np = np.clip(pred_np, 0, 7).astype(np.uint8)
+    gt_np = np.clip(gt_np, 0, 7).astype(np.uint8)
+
+    pred_overlay_bgr = _apply_color_overlay(img_bgr, pred_np, alpha=alpha)
+    gt_overlay_bgr = _apply_color_overlay(img_bgr, gt_np, alpha=alpha)
+
+    # 3-row composite: pred/gt/original
+    # out_bgr = np.concatenate([pred_overlay_bgr, gt_overlay_bgr, img_bgr], axis=0)
+    out_bgr=pred_overlay_bgr
+    out_h, out_w = int(out_size_hw[0]), int(out_size_hw[1])
+    out_bgr = cv2.resize(out_bgr, (out_w, out_h), interpolation=cv2.INTER_AREA)
+
+    if save:
+        base_dir = f"/data/yjh_files/code/Mask2Former-Simplify-master/{task}"
+        os.makedirs(base_dir, exist_ok=True)
+
+        if dice > 0.8:
+            sub = "dice>0.8"
+        elif dice > 0.5 and dice <= 0.8:
+            sub = "dice<0.8"
+        else:
+            sub = "dice<0.5"
+        out_dir = os.path.join(base_dir, sub)
+        os.makedirs(out_dir, exist_ok=True)
+
+        out_path = os.path.join(out_dir, f"{name}_{dice}.png")
+        cv2.imwrite(out_path, out_bgr)
+
+    return out_bgr
 def binarize_mask(mask: torch.Tensor) -> torch.Tensor:
     """
     将多类别 mask (0~7) 转为二值 mask：

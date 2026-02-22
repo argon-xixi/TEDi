@@ -44,7 +44,7 @@ from yjh.mIOU_new import eval_endovis
 import cv2
 import pickle
 from collections import OrderedDict
-from yjh.utils_yjh import instance_inference_pure,batch_topk_instances_to_semantic_overwrite,visanddraw,semantic_inference_with_bg,compute_iou_and_dice,plot_query_semseg_distribution
+from yjh.utils_yjh import instance_inference_pure,batch_topk_instances_to_semantic_overwrite,visanddraw,semantic_inference_with_bg,compute_iou_and_dice,plot_query_semseg_distribution,overlay
 # from modeling.memory.memory_encorder_classwise import ClasswiseQueryMemoryModule
 import einops
 import json
@@ -751,7 +751,7 @@ class MaskFormer_baseline():
         
         val_pred=torch.zeros((len(eval_loader.dataset),128,128)).to(device=self.device)
         val_target=torch.zeros((len(eval_loader.dataset),128,128)).to(device=self.device)
-        # val_image=torch.zeros((len(eval_loader.dataset),128,128,3)).to(device=self.device)
+        val_image=torch.zeros((len(eval_loader.dataset),128,128,3)).to(device=self.device)
         
         # val_mask_cls_results=torch.zeros((len(eval_loader.dataset),100,9)).to(device=self.device)
         # val_mask_pred_results=torch.zeros((len(eval_loader.dataset),100,128,128)).to(device=self.device)
@@ -1068,6 +1068,7 @@ class MaskFormer_baseline():
                     dice_mean_new=dice_coeff(preds_all[i,:,:].unsqueeze(0), targets_all[i,:,:].unsqueeze(0).to(self.device))
                     dice_all.append(dice_mean_new.detach().cpu().numpy())
                     # visanddraw(preds_all[i,:,:], targets_all[i,:,:].to(self.device),names[i],dice_mean_new,'endovis_2017_baseline_swins_20_0_3/',val_image[i])
+                    overlay(preds_all[i,:,:], targets_all[i,:,:].to(self.device),names[i],dice_mean_new,'endovis_2017_baseline_swins_20_0_3/',val_image[i])
                 dice=np.mean(dice_all)
             # dice_all = dice_coeff(preds_all, targets_all)
             # score = dice_all.mean().item()

@@ -17,7 +17,7 @@ events.out.tfevents.*
 *.tif
 *.tiff
 *.gif
-!fig/Fig2.1原图HD.png
+!fig/tedi_architecture.png
 .pytest_cache/
 *.pyc
 *.pyo

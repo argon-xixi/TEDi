@@ -18,6 +18,10 @@ TEDi performs surgical instrument segmentation in endoscopic video by combining 
 - EndoVis 2017 four-fold evaluation and EndoVis 2018 experiments.
 - Training, evaluation, visualization, and efficiency measurement in one entry point.
 
+## Documentation
+
+- [GitHub upload, synchronization, and collaboration guide](GITHUB_GUIDE.md)
+
 ## Repository Structure
 
 ```text

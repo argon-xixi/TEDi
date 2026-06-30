@@ -20,43 +20,7 @@ FOLD_SEQUENCES = {
     3: (6, 7),
 }
 
-# Keep the data-quality exclusions used by the paper experiments reproducible.
-EXCLUDED_TRAIN_FRAMES = {
-    "seq_2_frame004",
-    "seq_4_frame137",
-    "seq_6_frame104",
-    "seq_6_frame138",
-    "seq_10_frame072",
-    "seq_10_frame105",
-    "seq_15_frame139",
-    "seq_16_frame030",
-    "seq_16_frame068",
-}
-EXCLUDED_TEST_FRAMES = {
-    "seq_2_frame107",
-    "seq_2_frame108",
-    "seq_2_frame109",
-    "seq_2_frame110",
-    "seq_2_frame111",
-    "seq_2_frame112",
-    "seq_2_frame113",
-    "seq_2_frame114",
-    "seq_2_frame115",
-    "seq_2_frame116",
-    "seq_2_frame117",
-    "seq_2_frame118",
-    "seq_2_frame119",
-    "seq_9_frame050",
-    "seq_9_frame057",
-    "seq_9_frame070",
-    "seq_9_frame071",
-    "seq_9_frame072",
-    "seq_9_frame073",
-    "seq_9_frame074",
-    "seq_9_frame075",
-    "seq_9_frame076",
-    "seq_9_frame140",
-}
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train TEDi on EndoVis data")
@@ -150,8 +114,8 @@ def collect_dataset_paths(cfg):
             sequence = int(Path(path).name.split("_")[1])
             (test_paths if sequence in test_sequences else train_paths).append(path)
     else:
-        train_paths = [p for p in _h5_stems(root / "train") if Path(p).name not in EXCLUDED_TRAIN_FRAMES]
-        test_paths = [p for p in _h5_stems(root / "test") if Path(p).name not in EXCLUDED_TEST_FRAMES]
+        train_paths = [p for p in _h5_stems(root / "train") ]
+        test_paths = [p for p in _h5_stems(root / "test") ]
 
     if not train_paths or not test_paths:
         raise FileNotFoundError(

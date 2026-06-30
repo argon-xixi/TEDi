@@ -4,7 +4,7 @@ Official code repository for **TEDi: Temporal Memory-Enhanced and Denoising Tran
 
 TEDi performs surgical instrument segmentation in endoscopic video by combining a denoising query tracker with a temporal memory bank. The memory-enhanced representation uses preceding frames to improve temporal consistency and robustness in challenging surgical scenes.
 
-![TEDi architecture](fig/Fig2.1HD.png)
+![TEDi architecture](fig/Fig2.1%E5%8E%9F%E5%9B%BEHD.png)
 
 ## Highlights
 
@@ -20,7 +20,7 @@ TEDi performs surgical instrument segmentation in endoscopic video by combining 
 TEDi/
 |-- configs/tedi.yaml                 # Main paper configuration
 |-- Data/                             # EndoVis temporal clip loader
-|-- fig/Fig2.1HD.png                  # TEDi architecture
+|-- fig/Fig2.1原图HD.png              # TEDi architecture
 |-- modeling/
 |   |-- backbone/                     # Swin Transformer backbone
 |   |-- dvis/                         # Denoising temporal query tracker

@@ -31,11 +31,11 @@ from utils.summary import create_summary
 from utils.solver import maybe_add_gradient_clipping
 from utils.misc import load_parallal_model
 
-from yjh.mIOU_new import eval_endovis
+from utils.mIOU_new import eval_endovis
 import cv2
 import pickle
 from collections import OrderedDict
-from yjh.utils_yjh import compute_iou_and_dice, overlay
+from utils.utils import compute_iou_and_dice, overlay
 import einops
 import json
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, roc_auc_score

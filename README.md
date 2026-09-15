@@ -6,7 +6,9 @@ TEDi combines a Swin Transformer and Mask2Former segmentation head with an MSE m
 
 This README describes the current source tree. The temporal decoder is referred to as **TCD** or **`denoising_decoder`** throughout the documentation.
 
-![TEDi architecture](fig/tedi_architecture.png)
+<p align="center">
+  <img src="fig/tedi_architecture.png" alt="TEDi architecture" width="960">
+</p>
 
 <p align="center">
   <a href="fig/tedi_demo_10s.mp4">

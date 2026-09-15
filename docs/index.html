@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TEDi | MICCAI 2026</title>
+<meta name="description" content="TEDi: Temporal Memory-Enhanced and Denoising Transformer for Surgical Instrument Segmentation. MICCAI 2026.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232f538b'/%3E%3Ctext x='16' y='24' font-family='Arial' font-size='24' font-weight='bold' text-anchor='middle' fill='white'%3ET%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css"><script src="site-config.js" defer></script><script src="script.js" defer></script>
+</head>
+<body>
+
+<main>
+<section class="hero" aria-labelledby="paper-title">
+<p class="conference">MICCAI 2026</p>
+<h1 id="paper-title"><span>TEDi:</span> Temporal Memory-Enhanced and Denoising Transformer for Surgical Instrument Segmentation</h1>
+<div class="authors"><span>Jiahong Yuan<sup>1*</sup></span><span>Weiming Mi<sup>2*</sup></span><span>Tao Zhang<sup>1†</sup></span><span>Haoyin Zhou<sup>2†</sup></span></div>
+<p class="affiliations"><sup>1</sup> Department of Automation, Tsinghua University<br><sup>2</sup> Surgical Planning Laboratory, Brigham and Women’s Hospital,<br class="desktop-break"> Harvard Medical School</p>
+<p class="author-note">* Equal contribution &nbsp; · &nbsp; † Corresponding authors</p>
+<div class="resources"><a id="paper-link" class="button primary" aria-disabled="true" title="arXiv link coming soon">Paper <span aria-hidden="true">↗</span></a><a class="button" href="https://github.com/argon-xixi/TEDi" target="_blank" rel="noopener">Code <span aria-hidden="true">↗</span></a><a class="button" href="#video">Demo</a></div>
+
+
+</section>
+<section id="abstract" class="text-section"><h2>Abstract</h2><p>Query-based segmentation methods have shown promising potential for surgical instrument segmentation and recognition, which is essential for scene understanding and downstream tasks in computer-assisted surgery. However, most existing approaches predominantly rely on per-frame predictions and overlook cross-frame temporal priors as well as temporal-consistency constraints. This limitation often leads to unstable query representations and suboptimal category recognition. In this paper, we propose TEDi, a Temporal memory-Enhanced and Denoising transformer for surgical instrument segmentation that addresses these issues through Memory Search Enhancement and Temporal Consistency Denoising. The former introduces a query-level memory bank and a memory search enhancement encoder to retrieve discriminative representations from historical frames, enriching current-frame features. The latter constructs a temporally consistent reference as a cross-frame semantic anchor to suppress temporally unstable predictions and promote semantic coherence across frames. Extensive experiments on two benchmark datasets, EndoVis 2017 and EndoVis 2018, demonstrate that TEDi consistently outperforms state-of-the-art methods, highlighting its potential to further advance computer-assisted surgery.</p></section>
+<section id="model"><h2>Model Overview</h2><figure class="overview"><a href="assets/framework.png" target="_blank" rel="noopener" aria-label="Open TEDi framework at full resolution"><img src="assets/framework.png" width="2000" height="827" alt="TEDi pipeline with a query-level memory bank, Memory Search Enhancement encoder, and Temporal Consistency Denoising decoder"></a><figcaption>TEDi refines current-frame queries through historical memory retrieval and temporal consistency denoising.</figcaption></figure></section>
+<section id="video"><h2>Demo Videos</h2><article class="demo-block"><h3>EndoVis 2017</h3><div class="video-shell"><video id="video-2017" controls playsinline preload="metadata" hidden aria-label="TEDi demo on EndoVis 2017"></video><div id="placeholder-2017" class="video-placeholder"><span class="play-symbol" aria-hidden="true">▷</span><p>Video coming soon</p></div></div></article><article class="demo-block"><h3>EndoVis 2018</h3><div class="video-shell"><video id="video-2018" controls playsinline preload="metadata" hidden aria-label="TEDi demo on EndoVis 2018"></video><div id="placeholder-2018" class="video-placeholder"><span class="play-symbol" aria-hidden="true">▷</span><p>Video coming soon</p></div></div></article></section>
+<section id="citation"><div class="citation-heading"><h2>Citation</h2><button id="copy-citation" type="button">Copy BibTeX</button></div><pre id="bibtex">@inproceedings{yuan2026tedi,
+  title={TEDi: Temporal Memory-Enhanced and Denoising Transformer for Surgical Instrument Segmentation},
+  author={Yuan, Jiahong and Mi, Weiming and Zhang, Tao and Zhou, Haoyin},
+  booktitle={Medical Image Computing and Computer Assisted Intervention -- MICCAI 2026},
+  year={2026}
+}</pre><p id="copy-status" class="sr-only" role="status"></p></section>
+</main><footer><p>TEDi · MICCAI 2026</p></footer>
+</body></html>

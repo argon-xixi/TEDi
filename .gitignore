@@ -24,5 +24,5 @@ events.out.tfevents.*
 .DS_Store
 
 !fig/tedi_demo_preview.gif
-!docs/assets/miccai2026-main/docs/assets/framework.png
+!docs/assets/framework.png
 /final_vis
